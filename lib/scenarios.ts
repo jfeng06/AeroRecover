@@ -6,6 +6,8 @@ export interface Airport {
   code: string;
   city: string;
   region: "US" | "Global";
+  lat: number;
+  lon: number;
 }
 
 export type Severity = "high" | "medium" | "low";

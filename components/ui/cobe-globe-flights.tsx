@@ -12,6 +12,7 @@ interface FlightArc {
 interface FlightMarker {
   id: string
   location: [number, number]
+  size?: number
 }
 
 interface GlobeFlightsProps {
@@ -105,7 +106,7 @@ export function GlobeFlights({
       markerColor: [0.93, 0.26, 0.26], // Red for hub/disruptions
       glowColor: [0.1, 0.1, 0.1],
       markerElevation: 0.1,
-      markers: markers.map((m) => ({ location: m.location, size: m.id === 'apt-dfw' ? 0.08 : 0.04, id: m.id })),
+      markers: markers.map((m) => ({ location: m.location, size: m.size ?? 0.04, id: m.id })),
       arcs: arcs.map((a) => ({ from: a.from, to: a.to, id: a.id })),
       arcColor: [0.22, 0.5, 0.96], // Blue for flights
       arcWidth: 1.5, arcHeight: 0.25, opacity: 0.8,

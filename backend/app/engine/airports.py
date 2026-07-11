@@ -14,41 +14,42 @@ import random
 import uuid
 from typing import Dict, Any, List, Optional
 
-# code -> metadata. weight scales KPI magnitude (bigger hub -> bigger impact).
+# code -> metadata. weight scales KPI magnitude (bigger hub -> bigger impact);
+# lat/lon drive the marker positions on the 3D globe.
 AIRPORTS: Dict[str, Dict[str, Any]] = {
     # ---- United States ----
-    "ATL": {"city": "Atlanta", "region": "US", "weight": 1.00},
-    "DFW": {"city": "Dallas–Fort Worth", "region": "US", "weight": 0.95},
-    "ORD": {"city": "Chicago O'Hare", "region": "US", "weight": 0.92},
-    "DEN": {"city": "Denver", "region": "US", "weight": 0.88},
-    "LAX": {"city": "Los Angeles", "region": "US", "weight": 0.90},
-    "JFK": {"city": "New York JFK", "region": "US", "weight": 0.82},
-    "SFO": {"city": "San Francisco", "region": "US", "weight": 0.76},
-    "SEA": {"city": "Seattle", "region": "US", "weight": 0.72},
-    "LAS": {"city": "Las Vegas", "region": "US", "weight": 0.66},
-    "MIA": {"city": "Miami", "region": "US", "weight": 0.70},
-    "PHX": {"city": "Phoenix", "region": "US", "weight": 0.66},
-    "CLT": {"city": "Charlotte", "region": "US", "weight": 0.71},
-    "IAH": {"city": "Houston", "region": "US", "weight": 0.74},
-    "EWR": {"city": "Newark", "region": "US", "weight": 0.70},
-    "BOS": {"city": "Boston", "region": "US", "weight": 0.65},
+    "ATL": {"city": "Atlanta", "region": "US", "weight": 1.00, "lat": 33.64, "lon": -84.43},
+    "DFW": {"city": "Dallas–Fort Worth", "region": "US", "weight": 0.95, "lat": 32.90, "lon": -97.04},
+    "ORD": {"city": "Chicago O'Hare", "region": "US", "weight": 0.92, "lat": 41.98, "lon": -87.90},
+    "DEN": {"city": "Denver", "region": "US", "weight": 0.88, "lat": 39.86, "lon": -104.67},
+    "LAX": {"city": "Los Angeles", "region": "US", "weight": 0.90, "lat": 33.94, "lon": -118.41},
+    "JFK": {"city": "New York JFK", "region": "US", "weight": 0.82, "lat": 40.64, "lon": -73.78},
+    "SFO": {"city": "San Francisco", "region": "US", "weight": 0.76, "lat": 37.62, "lon": -122.38},
+    "SEA": {"city": "Seattle", "region": "US", "weight": 0.72, "lat": 47.45, "lon": -122.31},
+    "LAS": {"city": "Las Vegas", "region": "US", "weight": 0.66, "lat": 36.08, "lon": -115.15},
+    "MIA": {"city": "Miami", "region": "US", "weight": 0.70, "lat": 25.79, "lon": -80.29},
+    "PHX": {"city": "Phoenix", "region": "US", "weight": 0.66, "lat": 33.43, "lon": -112.01},
+    "CLT": {"city": "Charlotte", "region": "US", "weight": 0.71, "lat": 35.21, "lon": -80.94},
+    "IAH": {"city": "Houston", "region": "US", "weight": 0.74, "lat": 29.99, "lon": -95.34},
+    "EWR": {"city": "Newark", "region": "US", "weight": 0.70, "lat": 40.69, "lon": -74.17},
+    "BOS": {"city": "Boston", "region": "US", "weight": 0.65, "lat": 42.36, "lon": -71.01},
     # ---- Global ----
-    "LHR": {"city": "London Heathrow", "region": "Global", "weight": 0.95},
-    "CDG": {"city": "Paris Charles de Gaulle", "region": "Global", "weight": 0.86},
-    "AMS": {"city": "Amsterdam Schiphol", "region": "Global", "weight": 0.82},
-    "FRA": {"city": "Frankfurt", "region": "Global", "weight": 0.85},
-    "IST": {"city": "Istanbul", "region": "Global", "weight": 0.84},
-    "DXB": {"city": "Dubai", "region": "Global", "weight": 0.90},
-    "SIN": {"city": "Singapore Changi", "region": "Global", "weight": 0.85},
-    "HKG": {"city": "Hong Kong", "region": "Global", "weight": 0.80},
-    "NRT": {"city": "Tokyo Narita", "region": "Global", "weight": 0.80},
-    "HND": {"city": "Tokyo Haneda", "region": "Global", "weight": 0.88},
-    "ICN": {"city": "Seoul Incheon", "region": "Global", "weight": 0.81},
-    "PEK": {"city": "Beijing Capital", "region": "Global", "weight": 0.89},
-    "SYD": {"city": "Sydney", "region": "Global", "weight": 0.70},
-    "YYZ": {"city": "Toronto Pearson", "region": "Global", "weight": 0.72},
-    "DEL": {"city": "Delhi", "region": "Global", "weight": 0.78},
-    "GRU": {"city": "São Paulo", "region": "Global", "weight": 0.71},
+    "LHR": {"city": "London Heathrow", "region": "Global", "weight": 0.95, "lat": 51.47, "lon": -0.46},
+    "CDG": {"city": "Paris Charles de Gaulle", "region": "Global", "weight": 0.86, "lat": 49.01, "lon": 2.55},
+    "AMS": {"city": "Amsterdam Schiphol", "region": "Global", "weight": 0.82, "lat": 52.31, "lon": 4.76},
+    "FRA": {"city": "Frankfurt", "region": "Global", "weight": 0.85, "lat": 50.04, "lon": 8.56},
+    "IST": {"city": "Istanbul", "region": "Global", "weight": 0.84, "lat": 41.28, "lon": 28.75},
+    "DXB": {"city": "Dubai", "region": "Global", "weight": 0.90, "lat": 25.25, "lon": 55.36},
+    "SIN": {"city": "Singapore Changi", "region": "Global", "weight": 0.85, "lat": 1.36, "lon": 103.99},
+    "HKG": {"city": "Hong Kong", "region": "Global", "weight": 0.80, "lat": 22.31, "lon": 113.91},
+    "NRT": {"city": "Tokyo Narita", "region": "Global", "weight": 0.80, "lat": 35.77, "lon": 140.39},
+    "HND": {"city": "Tokyo Haneda", "region": "Global", "weight": 0.88, "lat": 35.55, "lon": 139.78},
+    "ICN": {"city": "Seoul Incheon", "region": "Global", "weight": 0.81, "lat": 37.46, "lon": 126.44},
+    "PEK": {"city": "Beijing Capital", "region": "Global", "weight": 0.89, "lat": 40.08, "lon": 116.58},
+    "SYD": {"city": "Sydney", "region": "Global", "weight": 0.70, "lat": -33.94, "lon": 151.18},
+    "YYZ": {"city": "Toronto Pearson", "region": "Global", "weight": 0.72, "lat": 43.68, "lon": -79.63},
+    "DEL": {"city": "Delhi", "region": "Global", "weight": 0.78, "lat": 28.56, "lon": 77.10},
+    "GRU": {"city": "São Paulo", "region": "Global", "weight": 0.71, "lat": -23.43, "lon": -46.47},
 }
 
 # Pool of spoke codes used to build plausible route strings in actions.
@@ -84,7 +85,14 @@ def _fmt(minutes: int) -> str:
 def list_airports() -> List[Dict[str, Any]]:
     """Metadata for the dropdown, US first then Global, each alphabetical."""
     items = [
-        {"id": code, "code": code, "city": m["city"], "region": m["region"]}
+        {
+            "id": code,
+            "code": code,
+            "city": m["city"],
+            "region": m["region"],
+            "lat": m["lat"],
+            "lon": m["lon"],
+        }
         for code, m in AIRPORTS.items()
     ]
     items.sort(key=lambda a: (a["region"] != "US", a["code"]))
