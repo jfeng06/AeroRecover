@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Keyboard, Key } from "@/components/ui/keyboard";
+import { Button } from "@/components/ui/neon-button";
 import { useAppStore } from "@/lib/store";
 import { SCENARIOS, getScenarioMeta, SEVERITY_STYLES } from "@/lib/scenarios";
 
@@ -37,13 +38,15 @@ export function ScenarioSelector() {
         <p className="text-zinc-300 mt-2 min-h-[4.5rem]">{active.description}</p>
       </div>
 
-      <button
+      <Button
         onClick={runSimulation}
         disabled={isLoadingBaseline}
-        className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded uppercase tracking-wider disabled:opacity-50"
+        variant="solid"
+        size="lg"
+        className="mt-4 w-full font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isLoadingBaseline ? "Simulating..." : "Simulate Baseline"}
-      </button>
+      </Button>
     </div>
   );
 }
