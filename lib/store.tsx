@@ -5,6 +5,7 @@ import { Scenario, OptimizeResponse, GemmaResponse } from "./types";
 
 interface BaselineResponse {
   run_id: string;
+  scenario_id?: string;
   baseline_kpis: any;
   affected_flights: any[];
   timeline: any[];
@@ -30,14 +31,25 @@ interface AppContextType extends AppState {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [selectedScenarioId, setSelectedScenarioId] = useState("dfw_storm");
+  const [selectedScenarioId, setSelectedScenarioIdState] = useState("dfw_storm");
   const [baselineData, setBaselineData] = useState<BaselineResponse | null>(null);
   const [optimizeData, setOptimizeData] = useState<OptimizeResponse | null>(null);
   const [gemmaData, setGemmaData] = useState<GemmaResponse | null>(null);
-  
+
   const [isLoadingBaseline, setIsLoadingBaseline] = useState(false);
   const [isLoadingOptimize, setIsLoadingOptimize] = useState(false);
   const [isLoadingGemma, setIsLoadingGemma] = useState(false);
+
+  // Switching scenarios must clear stale results, otherwise the dashboard
+  // keeps showing the previous scenario's data (the "every page looks the
+  // same" bug started here on the frontend).
+  const setSelectedScenarioId = (id: string) => {
+    if (id === selectedScenarioId) return;
+    setSelectedScenarioIdState(id);
+    setBaselineData(null);
+    setOptimizeData(null);
+    setGemmaData(null);
+  };
 
   const runSimulation = async () => {
     setIsLoadingBaseline(true);
@@ -67,10 +79,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scenario_id: selectedScenarioId, candidate_count: 5000, seed: 42 }),
       });
-      const data = await res.json();
+      const data: OptimizeResponse = await res.json();
       setOptimizeData(data);
-      // Auto-trigger brief after optimization
-      await generateBrief(data.run_id);
+      // Auto-trigger the Gemma brief with the freshly-optimized plan.
+      await generateBrief(data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -78,13 +90,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const generateBrief = async (run_id?: string) => {
+  const generateBrief = async (optimize?: OptimizeResponse) => {
     setIsLoadingGemma(true);
     try {
+      const opt = optimize ?? optimizeData ?? undefined;
       const res = await fetch("/api/gemma/brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: run_id || baselineData?.run_id }),
+        body: JSON.stringify({
+          run_id: opt?.run_id ?? baselineData?.run_id ?? `run_${selectedScenarioId}`,
+          scenario_id: selectedScenarioId,
+          baseline_kpis: opt?.baseline_kpis ?? baselineData?.baseline_kpis,
+          top_plans: opt?.selected_plan ? [opt.selected_plan] : undefined,
+        }),
       });
       const data = await res.json();
       setGemmaData(data);
@@ -108,7 +126,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setSelectedScenarioId,
         runSimulation,
         runOptimization,
-        generateBrief,
+        generateBrief: () => generateBrief(),
       }}
     >
       {children}
