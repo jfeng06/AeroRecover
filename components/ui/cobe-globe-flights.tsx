@@ -168,7 +168,6 @@ export function GlobeFlights({
           key={a.id}
           style={{
             position: "absolute",
-            // @ts-expect-error CSS Anchor Positioning
             positionAnchor: `--cobe-arc-${a.id}`,
             bottom: "anchor(top)",
             left: "anchor(center)",

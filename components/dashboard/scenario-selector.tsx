@@ -31,7 +31,10 @@ export function ScenarioSelector() {
 
       <div className={`${severity.box} border p-4 rounded-md`}>
         <p className={`${severity.text} font-mono text-sm uppercase`}>Severity: {active.severityLabel}</p>
-        <p className="text-zinc-300 mt-2">{active.description}</p>
+        {/* Reserve height for the longest (3-line) description so the panel
+            height is constant across scenarios and the controls below it
+            don't jump when switching. */}
+        <p className="text-zinc-300 mt-2 min-h-[4.5rem]">{active.description}</p>
       </div>
 
       <button
