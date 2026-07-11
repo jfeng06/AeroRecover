@@ -12,6 +12,7 @@ interface FlightArc {
 interface FlightMarker {
   id: string
   location: [number, number]
+  size?: number
 }
 
 interface GlobeFlightsProps {
@@ -97,19 +98,19 @@ export function GlobeFlights({
       if (width === 0 || globe) return
 
       globe = createGlobe(canvas, {
-      devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
-      width, height: width,
-      phi: 0, theta: 0.2, dark: 0.95, diffuse: 1.5,
-      mapSamples: 16000, mapBrightness: 8,
-      baseColor: [0.1, 0.1, 0.1], // Dark mode colors
-      markerColor: [0.93, 0.26, 0.26], // Red for hub/disruptions
-      glowColor: [0.1, 0.1, 0.1],
-      markerElevation: 0.1,
-      markers: markers.map((m) => ({ location: m.location, size: m.id === 'apt-dfw' ? 0.08 : 0.04, id: m.id })),
-      arcs: arcs.map((a) => ({ from: a.from, to: a.to, id: a.id })),
-      arcColor: [0.22, 0.5, 0.96], // Blue for flights
-      arcWidth: 1.5, arcHeight: 0.25, opacity: 0.8,
-    })
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        width, height: width,
+        phi: 0, theta: 0.2, dark: 0.95, diffuse: 1.5,
+        mapSamples: 16000, mapBrightness: 8,
+        baseColor: [0.1, 0.1, 0.1], // Dark mode colors
+        markerColor: [0.93, 0.26, 0.26], // Red for hub/disruptions
+        glowColor: [0.1, 0.1, 0.1],
+        markerElevation: 0.1,
+        markers: markers.map((m) => ({ location: m.location, size: m.size ?? 0.04, id: m.id })),
+        arcs: arcs.map((a) => ({ from: a.from, to: a.to, id: a.id })),
+        arcColor: [0.22, 0.5, 0.96], // Blue for flights
+        arcWidth: 1.5, arcHeight: 0.25, opacity: 0.8,
+      })
     function animate() {
       if (!isPausedRef.current) phi += speed
       globe!.update({
@@ -142,19 +143,6 @@ export function GlobeFlights({
 
   return (
     <div className={`relative aspect-square select-none ${className}`}>
-      <svg width="0" height="0" style={{ position: "absolute" }}>
-        <defs>
-          <filter id="sticker-outline-flight">
-            <feMorphology in="SourceAlpha" result="Dilated" operator="dilate" radius="2" />
-            <feFlood floodColor="#ffffff" result="OutlineColor" />
-            <feComposite in="OutlineColor" in2="Dilated" operator="in" result="Outline" />
-            <feMerge>
-              <feMergeNode in="Outline" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-      </svg>
       <canvas
         ref={canvasRef}
         onPointerDown={handlePointerDown}
@@ -163,26 +151,6 @@ export function GlobeFlights({
           transition: "opacity 1.2s ease", borderRadius: "50%", touchAction: "none",
         }}
       />
-      {arcs.map((a) => (
-        <div
-          key={a.id}
-          style={{
-            position: "absolute",
-            // @ts-expect-error CSS Anchor Positioning
-            positionAnchor: `--cobe-arc-${a.id}`,
-            bottom: "anchor(top)",
-            left: "anchor(center)",
-            translate: "-50% 0",
-            fontSize: "1.2rem",
-            pointerEvents: "none" as const,
-            filter: "url(#sticker-outline-flight) drop-shadow(0 1px 2px rgba(0,0,0,0.3))",
-            opacity: `var(--cobe-visible-arc-${a.id}, 0)`,
-            transition: "opacity 0.3s, filter 0.3s",
-          }}
-        >
-          ✈️
-        </div>
-      ))}
     </div>
   )
 }

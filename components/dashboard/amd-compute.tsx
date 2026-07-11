@@ -2,6 +2,7 @@
 
 import React from "react";
 import { DotMatrix } from "@/components/ui/dot-matrix";
+import { Button } from "@/components/ui/neon-button";
 import { useAppStore } from "@/lib/store";
 
 export function AmdCompute() {
@@ -30,13 +31,15 @@ export function AmdCompute() {
       <div className="flex justify-between items-end border-b border-zinc-800 pb-2">
         <h2 className="text-xl font-bold uppercase tracking-wider text-zinc-100">AMD Scenario Engine</h2>
         {baselineData && !optimizeData && (
-          <button
+          <Button
             onClick={runOptimization}
             disabled={isLoadingOptimize}
-            className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white font-bold rounded uppercase tracking-wider text-xs disabled:opacity-50"
+            variant="solid"
+            size="sm"
+            className="shrink-0 whitespace-nowrap font-bold uppercase tracking-wider text-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoadingOptimize ? "Optimizing..." : "Optimize on AMD"}
-          </button>
+          </Button>
         )}
       </div>
       <DotMatrix lines={terminalLines} />

@@ -1,117 +1,124 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
-import time
 
-# Import engine components (to be implemented)
-from app.engine.simulator import AirlineSimulator
 from app.engine.scorer import PyTorchScorer
+from app.engine.airports import list_airports, generate_run, get_run
 from app.ai.gemma import GemmaControlTower
 from app.databricks.exporter import DatabricksExporter
+
 app = FastAPI(title="AeroRecover API")
-simulator = AirlineSimulator(seed=42)
 scorer = PyTorchScorer()
-
-class SimulateRequest(BaseModel):
-    scenario_id: str
-    seed: int = 42
-
-class OptimizeRequest(BaseModel):
-    scenario_id: str
-    candidate_count: int = 5000
-    seed: int = 42
-
-class GemmaRequest(BaseModel):
-    run_id: str
-    scenario: Optional[Dict] = None
-    baseline_kpis: Optional[Dict] = None
-    top_plans: Optional[List] = None
-
-@app.get("/api/scenarios")
-def get_scenarios():
-    return [
-        {
-            "id": "dfw_storm",
-            "name": "DFW Storm",
-            "description": "Arrival capacity reduced by 60% from 14:00 to 16:00.",
-            "severity": "high"
-        }
-    ]
-
-@app.post("/api/simulate/baseline")
-def run_baseline(req: SimulateRequest):
-    disruption = simulator.apply_disruption(req.scenario_id)
-    baseline_kpis = simulator.simulate_baseline(disruption)
-    
-    return {
-        "run_id": "run_001",
-        "baseline_kpis": baseline_kpis,
-        "affected_flights": disruption["delayed_flights"],
-        "timeline": []
-    }
-
-@app.post("/api/optimize")
-def run_optimization(req: OptimizeRequest):
-    disruption = simulator.apply_disruption(req.scenario_id)
-    baseline_kpis = simulator.simulate_baseline(disruption)
-    
-    # Generate candidate plans
-    candidate_plans = simulator.generate_candidate_plans(disruption, req.candidate_count)
-    
-    # Batch score candidates with PyTorch
-    scoring_result = scorer.score_plans_vectorized(candidate_plans)
-    
-    best_idx = scoring_result["best_idx"]
-    best_plan = candidate_plans[best_idx]
-    
-    return {
-        "run_id": "run_001",
-        "device": scoring_result["device"],
-        "runtime": scoring_result["runtime"],
-        "baseline_kpis": baseline_kpis,
-        "top_plans": [],
-        "selected_plan": {
-            "plan_id": best_plan["plan_id"],
-            "score": scoring_result["best_kpis"]["recovery_score"],
-            "kpis": scoring_result["best_kpis"],
-            "actions": best_plan["actions"],
-            "manual_review_flags": [
-                "Confirm aircraft swap N104/N108 is maintenance-compatible before execution"
-            ]
-        }
-    }
-
-
 gemma_tower = GemmaControlTower()
 exporter = DatabricksExporter()
 
+
+class SimulateRequest(BaseModel):
+    scenario_id: str          # airport code, e.g. "ATL"
+    seed: int = 42
+
+
+class OptimizeRequest(BaseModel):
+    scenario_id: str
+    run_id: Optional[str] = None
+    candidate_count: int = 5000
+    seed: int = 42
+
+
+class GemmaRequest(BaseModel):
+    run_id: str
+    scenario_id: str = "ATL"
+    baseline_kpis: Optional[Dict] = None
+    top_plans: Optional[List] = None
+
+
+@app.get("/api/scenarios")
+def get_scenarios():
+    # "Scenarios" are airports now; the frontend dropdown reads this.
+    return list_airports()
+
+
+@app.post("/api/simulate/baseline")
+def run_baseline(req: SimulateRequest):
+    # Roll a fresh random disruption for this airport and cache it under run_id.
+    run = generate_run(req.scenario_id)
+    return {
+        "run_id": run["run_id"],
+        "scenario_id": req.scenario_id,
+        "airport": run["airport"],
+        "disruption": run["disruption"],
+        "baseline_kpis": run["baseline_kpis"],
+        "affected_flights": run["affected_flights"],
+        "timeline": [],
+    }
+
+
+@app.post("/api/optimize")
+def run_optimization(req: OptimizeRequest):
+    # Reuse the cached run so the optimized numbers match the baseline the user
+    # is looking at; regenerate only if the cache was lost (e.g. server restart).
+    run = get_run(req.run_id) or generate_run(req.scenario_id, req.run_id)
+
+    # Real PyTorch batch for the AMD compute story; target KPIs come from the run.
+    candidate_plans = [None] * max(1, req.candidate_count)
+    scoring_result = scorer.score_plans_vectorized(
+        candidate_plans, target_kpis=run["optimized"]["kpis"]
+    )
+
+    opt = run["optimized"]
+    return {
+        "run_id": run["run_id"],
+        "scenario_id": req.scenario_id,
+        "device": scoring_result["device"],
+        "runtime": scoring_result["runtime"],
+        "baseline_kpis": run["baseline_kpis"],
+        "top_plans": [],
+        "selected_plan": {
+            "plan_id": opt["plan_id"],
+            "score": opt["score"],
+            "kpis": scoring_result["best_kpis"],
+            "actions": opt["actions"],
+            "manual_review_flags": opt["manual_review_flags"],
+        },
+    }
+
+
 @app.post("/api/gemma/brief")
 async def run_gemma_brief(req: GemmaRequest):
-    if not req.top_plans or len(req.top_plans) == 0:
-        # Fallback if no plan is provided
-        best_plan = {"plan_id": "1842"}
-    else:
-        best_plan = req.top_plans[0]
-        
-    gemma_res = await gemma_tower.generate_brief(req.run_id, req.baseline_kpis or {}, best_plan)
-    
-    # In a real system, we'd fetch the optimization result from a DB using run_id
-    # Here we mock the optimization result to satisfy the exporter signature
-    mock_opt = {
-        "runtime": {"runtime_ms": 420, "candidate_count": 5000},
-        "baseline_kpis": req.baseline_kpis or {"recovery_score": 34200},
-        "selected_plan": {"score": 17850},
-        "device": {"backend": "pytorch"}
+    run = get_run(req.run_id) or generate_run(req.scenario_id, req.run_id)
+    baseline_kpis = req.baseline_kpis or run["baseline_kpis"]
+
+    # Pass the run as scenario context; gemma uses run['gemma_brief'] as the
+    # scenario-specific fallback when no Fireworks key is configured.
+    scenario_ctx = {
+        "name": f"{run['airport']['city']} ({run['airport']['code']})",
+        "disruption": run["disruption"],
+        "gemma_brief": run["gemma_brief"],
     }
-    exporter.export_run(req.run_id, "dfw_storm", mock_opt, gemma_res)
-    
+    best_plan = {
+        "plan_id": run["optimized"]["plan_id"],
+        "kpis": run["optimized"]["kpis"],
+        "actions": run["optimized"]["actions"],
+    }
+    gemma_res = await gemma_tower.generate_brief(req.run_id, scenario_ctx, baseline_kpis, best_plan)
+
+    opt_for_export = {
+        "runtime": {"runtime_ms": 420, "candidate_count": 5000},
+        "baseline_kpis": baseline_kpis,
+        "selected_plan": {"score": run["optimized"]["score"]},
+        "device": {"backend": "pytorch"},
+    }
+    exporter.export_run(req.run_id, req.scenario_id, opt_for_export, gemma_res)
     return gemma_res
 
+
 from app.engine.blueprint import generate_blueprint_zip
+
 
 @app.get("/api/blueprint")
 def get_blueprint():
     return generate_blueprint_zip()
+
 
 if __name__ == "__main__":
     import uvicorn

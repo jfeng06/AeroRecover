@@ -38,8 +38,10 @@ class DatabricksExporter:
         
         # Log locally
         with sqlite3.connect(self.db_path) as conn:
+            # INSERT OR REPLACE so a repeated run_id updates the row instead of
+            # crashing on the UNIQUE primary-key constraint.
             conn.execute("""
-                INSERT INTO optimization_runs 
+                INSERT OR REPLACE INTO optimization_runs
                 (run_id, scenario_id, runtime_ms, scenarios_scored, baseline_score, optimized_score, device_backend, gemma_latency_ms)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (run_id, scenario_id, runtime_ms, scenarios_scored, baseline_score, optimized_score, backend, gemma_latency))

@@ -14,7 +14,7 @@ export default function Dashboard() {
       <main className="flex-1 p-8">
         <div className="grid grid-cols-12 gap-6 max-w-[1800px] mx-auto">
           {/* Left Column: Input & Context */}
-          <div className="col-span-12 lg:col-span-3 space-y-6 flex flex-col">
+          <div className="col-span-12 lg:col-span-4 space-y-6 flex flex-col">
             <ScenarioSelector />
             <div className="flex-1 min-h-[300px]">
               <NetworkMap />
@@ -22,7 +22,7 @@ export default function Dashboard() {
           </div>
           
           {/* Middle Column: Core Logic & Impact */}
-          <div className="col-span-12 lg:col-span-5 space-y-6">
+          <div className="col-span-12 lg:col-span-4 space-y-6">
             <KpiComparison />
             <ActionList />
           </div>
