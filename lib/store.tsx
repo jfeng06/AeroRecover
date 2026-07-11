@@ -1,17 +1,21 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
-import { Scenario, OptimizeResponse, GemmaResponse } from "./types";
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { OptimizeResponse, GemmaResponse } from "./types";
+import { Airport, Disruption } from "./scenarios";
 
 interface BaselineResponse {
   run_id: string;
   scenario_id?: string;
+  airport?: Airport;
+  disruption?: Disruption;
   baseline_kpis: any;
   affected_flights: any[];
   timeline: any[];
 }
 
 interface AppState {
+  airports: Airport[];
   selectedScenarioId: string;
   baselineData: BaselineResponse | null;
   optimizeData: OptimizeResponse | null;
@@ -31,7 +35,8 @@ interface AppContextType extends AppState {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [selectedScenarioId, setSelectedScenarioIdState] = useState("dfw_storm");
+  const [airports, setAirports] = useState<Airport[]>([]);
+  const [selectedScenarioId, setSelectedScenarioIdState] = useState("");
   const [baselineData, setBaselineData] = useState<BaselineResponse | null>(null);
   const [optimizeData, setOptimizeData] = useState<OptimizeResponse | null>(null);
   const [gemmaData, setGemmaData] = useState<GemmaResponse | null>(null);
@@ -40,9 +45,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoadingOptimize, setIsLoadingOptimize] = useState(false);
   const [isLoadingGemma, setIsLoadingGemma] = useState(false);
 
-  // Switching scenarios must clear stale results, otherwise the dashboard
-  // keeps showing the previous scenario's data (the "every page looks the
-  // same" bug started here on the frontend).
+  // Load the airport list (one scenario per airport) and default to the first.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/scenarios");
+        const data: Airport[] = await res.json();
+        setAirports(data);
+        if (data.length) setSelectedScenarioIdState((prev) => prev || data[0].id);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, []);
+
+  // Switching airport clears stale results so the dashboard never shows the
+  // previous run's data.
   const setSelectedScenarioId = (id: string) => {
     if (id === selectedScenarioId) return;
     setSelectedScenarioIdState(id);
@@ -52,6 +70,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const runSimulation = async () => {
+    if (!selectedScenarioId) return;
     setIsLoadingBaseline(true);
     setOptimizeData(null);
     setGemmaData(null);
@@ -77,7 +96,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/optimize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scenario_id: selectedScenarioId, candidate_count: 5000, seed: 42 }),
+        body: JSON.stringify({
+          scenario_id: selectedScenarioId,
+          run_id: baselineData.run_id,
+          candidate_count: 5000,
+          seed: 42,
+        }),
       });
       const data: OptimizeResponse = await res.json();
       setOptimizeData(data);
@@ -98,7 +122,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          run_id: opt?.run_id ?? baselineData?.run_id ?? `run_${selectedScenarioId}`,
+          run_id: opt?.run_id ?? baselineData?.run_id ?? "",
           scenario_id: selectedScenarioId,
           baseline_kpis: opt?.baseline_kpis ?? baselineData?.baseline_kpis,
           top_plans: opt?.selected_plan ? [opt.selected_plan] : undefined,
@@ -116,6 +140,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider
       value={{
+        airports,
         selectedScenarioId,
         baselineData,
         optimizeData,
